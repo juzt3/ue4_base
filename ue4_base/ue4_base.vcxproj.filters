@@ -4,6 +4,7 @@
     <ClCompile Include="ue4_base.cpp" />
     <ClCompile Include="utils\utils.cpp" />
     <ClCompile Include="ue4\core_object\object\object.cpp" />
+    <ClCompile Include="ue4\lu4_sdk.cpp" />
     <ClCompile Include="ue4\sdk.cpp" />
     <ClCompile Include="ue4\core_object\name\name.cpp" />
     <ClCompile Include="hooks\hooks.cpp" />
@@ -37,6 +38,7 @@
     <ClInclude Include="ue4\core_object\struct\struct.h" />
     <ClInclude Include="ue4\core_object\field\field.h" />
     <ClInclude Include="ue4\core_object\name\name.h" />
+    <ClInclude Include="ue4\lu4_sdk.h" />
     <ClInclude Include="ue4\sdk.h" />
     <ClInclude Include="ue4\engine\world\world.h" />
     <ClInclude Include="hooks\hooks.h" />

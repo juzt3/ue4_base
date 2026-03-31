@@ -1,5 +1,6 @@
 #include <includes.h>
 #include "../hooks.h"
+#include "ue4/lu4_sdk.h"
 
 void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_client, ue4::engine::u_canvas* canvas) {
 	render::canvas = canvas;
@@ -37,6 +38,16 @@ void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_cli
 
 		const wchar_t* cmd = L"/useskill Spoil";
 		player_controller->use_command(cmd);
+	}
+
+	// Dump de skills al archivo - solo se ejecuta una vez por tecla
+	static bool dump_done = false;
+	if (GetAsyncKeyState('D') & 1) {
+		if (!dump_done) {
+			dump_done = true;
+			render::text({ 100.f, 100.f }, L"Dumping skills...", { 0.f, 1.f, 1.f, 1.f });
+			ue4::sdk::dump_skills_to_file("skills_dump.txt");
+		}
 	}
 	
 	// Mostrar posición actual en pantalla

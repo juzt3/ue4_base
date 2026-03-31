@@ -20,6 +20,7 @@
     <ClCompile Include="ue4\engine\canvas\canvas.cpp" />
     <ClCompile Include="ue4\game_framework\actor\actor.cpp" />
     <ClCompile Include="ue4\game_framework\player_controller\player_controller.cpp" />
+    <ClCompile Include="ue4\lu4_sdk.cpp" />
     <ClCompile Include="ue4\sdk.cpp" />
     <ClCompile Include="ue4_base.cpp" />
     <ClCompile Include="utils\libraries\minhook\src\buffer.c">
@@ -69,6 +70,7 @@
     <ClInclude Include="ue4\math\rotator.h" />
     <ClInclude Include="ue4\math\vector.h" />
     <ClInclude Include="ue4\math\vector_2d.h" />
+    <ClInclude Include="ue4\lu4_sdk.h" />
     <ClInclude Include="ue4\sdk.h" />
     <ClInclude Include="utils\libraries\lazy_importer.h" />
     <ClInclude Include="utils\libraries\minhook\include\MinHook.h" />

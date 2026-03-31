@@ -19,6 +19,7 @@
 #include "utils/libraries/lazy_importer.h"
 
 #include "ue4/sdk.h"
+#include "ue4/lu4_sdk.h"
 
 #include "ue4/math/vector.h"
 #include "ue4/math/vector_2d.h"

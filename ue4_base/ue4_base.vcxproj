@@ -14,6 +14,12 @@
     <ClCompile Include="hooks\game_tick\game_tick.cpp" />
     <ClCompile Include="hooks\hooks.cpp" />
     <ClCompile Include="hooks\post_render\post_render.cpp" />
+    <ClCompile Include="ipc\command_queue.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="ipc\server.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="render\render.cpp" />
     <ClCompile Include="ue4\components\skeletal_mesh_component\skeletal_mesh_component.cpp" />
     <ClCompile Include="ue4\core_object\name\name.cpp" />

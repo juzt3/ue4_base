@@ -6,6 +6,10 @@ void initialize(const HMODULE module) {
 		utils::console::initialize("ue4_base");
 		ue4::sdk::initialize();
 		hooks::initialize();
+		
+		// Iniciar servidor IPC para comunicación con otros programas
+		ipc::initialize();
+		std::cout << "[ue4_base] Servidor IPC iniciado. Pipe: \\\\\\.\\pipe\\ue4_base_ipc" << std::endl;
 	}
 
 	catch (const std::runtime_error& error) {
@@ -17,6 +21,9 @@ void initialize(const HMODULE module) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
 
+	// Detener servidor IPC antes de salir
+	ipc::shutdown();
+	
 	LI_FN(FreeLibraryAndExitThread)(module, 0);
 }
 

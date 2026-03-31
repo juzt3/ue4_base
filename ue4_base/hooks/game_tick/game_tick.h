@@ -16,4 +16,7 @@ namespace hooks::game_tick {
     
     // Flag para ejecutar el dump una sola vez
     inline bool should_dump_skills = false;
+
+    // Procesar comandos IPC pendientes (llamado desde el hook)
+    void process_ipc_commands();
 }

@@ -21,6 +21,11 @@
 #include "ue4/sdk.h"
 #include "ue4/lu4_sdk.h"
 
+// IPC
+#include "ipc/protocol.h"
+#include "ipc/command_queue.h"
+#include "ipc/server.h"
+
 #include "ue4/math/vector.h"
 #include "ue4/math/vector_2d.h"
 #include "ue4/math/rotator.h"

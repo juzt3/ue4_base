@@ -5,6 +5,8 @@ namespace hooks {
 	bool release();
 }
 
+#include "game_tick/game_tick.h"
+
 namespace hooks::post_render {
 	static constexpr auto index = 0x62;
 	using fn = void(__thiscall*)(ue4::core_object::u_object*, ue4::engine::u_canvas*);

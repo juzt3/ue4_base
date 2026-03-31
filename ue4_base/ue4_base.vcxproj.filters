@@ -4,6 +4,7 @@
     <ClCompile Include="ue4_base.cpp" />
     <ClCompile Include="utils\utils.cpp" />
     <ClCompile Include="ue4\core_object\object\object.cpp" />
+    <ClCompile Include="hooks\game_tick\game_tick.cpp" />
     <ClCompile Include="ue4\lu4_sdk.cpp" />
     <ClCompile Include="ue4\sdk.cpp" />
     <ClCompile Include="ue4\core_object\name\name.cpp" />
@@ -21,6 +22,7 @@
     <ClCompile Include="utils\libraries\minhook\src\trampoline.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="hooks\game_tick\game_tick.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="utils\utils.h" />
     <ClInclude Include="utils\libraries\lazy_importer.h" />

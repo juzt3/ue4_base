@@ -99,14 +99,16 @@ void ue4::sdk::dump_skills_to_file(const std::string& filename) {
 
     std::cout << "[dump_skills] Iniciando dump de skills 0-20002..." << std::endl;
 
-    const int32_t max_skill_id = 20002;
+    const int32_t max_skill_id = 391;
     int found_count = 0;
 
-    for (int32_t i = 0; i <= max_skill_id; i++) {
+    for (int32_t i = 1; i <= max_skill_id; i++) {
         std::string skill_name = get_skill_name_by_id(i);
         
         // Solo guardar si tiene nombre (no vacío)
         if (!skill_name.empty()) {
+            if (skill_name.compare("Unk") == 0)
+                continue;
             file << i << " " << skill_name << std::endl;
             found_count++;
         }

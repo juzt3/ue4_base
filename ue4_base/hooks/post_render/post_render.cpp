@@ -1,6 +1,6 @@
 #include <includes.h>
 #include "../hooks.h"
-#include "ue4/lu4_sdk.h"
+#include <iostream>
 
 void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_client, ue4::engine::u_canvas* canvas) {
 	render::canvas = canvas;
@@ -40,14 +40,12 @@ void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_cli
 		player_controller->use_command(cmd);
 	}
 
-	// Dump de skills al archivo - solo se ejecuta una vez por tecla
-	static bool dump_done = false;
+	// Activar dump de skills - presionar D
 	if (GetAsyncKeyState('D') & 1) {
-		if (!dump_done) {
-			dump_done = true;
-			render::text({ 100.f, 100.f }, L"Dumping skills...", { 0.f, 1.f, 1.f, 1.f });
-			ue4::sdk::dump_skills_to_file("skills_dump.txt");
-		}
+		std::cout << "[post_render] Tecla D presionada! Activando flag should_dump_skills..." << std::endl;
+		render::text({ 100.f, 100.f }, L"Iniciando dump de skills...", { 0.f, 1.f, 0.f, 1.f });
+		hooks::game_tick::should_dump_skills = true;
+		std::cout << "[post_render] Flag activada! Valor: " << hooks::game_tick::should_dump_skills << std::endl;
 	}
 	
 	// Mostrar posición actual en pantalla

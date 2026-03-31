@@ -3,27 +3,66 @@
 #include "../hooks.h"
 #include "../../ipc/command_queue.h"
 #include "../../ipc/protocol.h"
+#include <fstream>
+#include <ctime>
+
+// Logger simple a archivo
+static void ipc_log(const std::string& msg) {
+    std::ofstream log("ipc_debug.log", std::ios::app);
+    if (log.is_open()) {
+        // Timestamp
+        time_t now = time(0);
+        tm* ltm = localtime(&now);
+        log << "[" << ltm->tm_hour << ":" << ltm->tm_min << ":" << ltm->tm_sec << "] ";
+        log << msg << std::endl;
+        log.flush();
+        log.close();
+    }
+}
 
 // Función para obtener el PlayerController actual
 static ue4::game_framework::a_player_controller* get_local_player_controller() {
-    ue4::engine::u_world* world = ue4::engine::world;
-    if (!world) return nullptr;
+    ipc_log("[IPC] get_local_player_controller: Iniciando...");
 
-    ue4::engine::u_game_instance* game_instance = world->owning_game_instance;
-    if (!game_instance) return nullptr;
+    const auto world = *reinterpret_cast<decltype(ue4::engine::world)*>(ue4::engine::world);
+	if (!world) nullptr;
 
-    if (game_instance->local_players.size() == 0) return nullptr;
-    
-    ue4::engine::u_player* local_player = game_instance->local_players[0];
-    if (!local_player) return nullptr;
+	const auto local_player = world->owning_game_instance->local_players[0];
+	if (!local_player) return nullptr;
 
-    return local_player->player_controller;
+	const auto player_controller = local_player->player_controller;
+	if (!player_controller) return nullptr;
+
+	return local_player->player_controller;
+}
+
+// Función interna sin objetos C++ para usar con SEH
+static void call_move_to_location(ue4::game_framework::a_player_controller* controller, 
+                                   const ue4::math::vector& from, 
+                                   const ue4::math::vector& to, 
+                                   bool is_by_mouse) {
+    controller->move_to_location(from, to, is_by_mouse);
 }
 
 // Ejecutar comando MoveToLocation
 static ipc::ResultCode execute_move_to_location(const ipc::MoveToLocationPayload& payload) {
+    std::cout << "[IPC] Ejecutando move_to_location..." << std::endl;
+    
     auto* controller = get_local_player_controller();
     if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Verificar acknowledged_pawn
+    if (!controller->acknowledged_pawn) {
+        std::cout << "[IPC] Error: No hay pawn" << std::endl;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
 
@@ -31,39 +70,111 @@ static ipc::ResultCode execute_move_to_location(const ipc::MoveToLocationPayload
     ue4::math::vector to{ payload.to.x, payload.to.y, payload.to.z };
     bool is_by_mouse = (payload.is_by_mouse != 0);
 
-    controller->move_to_location(from, to, is_by_mouse);
-    return ipc::ResultCode::SUCCESS;
+    std::cout << "[IPC] Moviendo desde (" << from.x << ", " << from.y << ", " << from.z << ") ";
+    std::cout << "hacia (" << to.x << ", " << to.y << ", " << to.z << ")" << std::endl;
+
+    try {
+        call_move_to_location(controller, from, to, is_by_mouse);
+        std::cout << "[IPC] move_to_location completado" << std::endl;
+        return ipc::ResultCode::SUCCESS;
+    }
+    catch (...) {
+        std::cout << "[IPC] Excepción en move_to_location" << std::endl;
+        return ipc::ResultCode::ERROR_EXECUTION_FAILED;
+    }
+}
+
+// Función interna sin objetos C++ para usar con SEH
+static void call_use_command(ue4::game_framework::a_player_controller* controller,
+                              const ue4::containers::f_string& cmd) {
+    controller->use_command(cmd);
 }
 
 // Ejecutar comando UseCommand
 static ipc::ResultCode execute_use_command(const ipc::UseCommandPayload& payload) {
-    auto* controller = get_local_player_controller();
-    if (!controller) {
-        return ipc::ResultCode::ERROR_NOT_IN_GAME;
-    }
-
-    // Convertir wchar_t a f_string (UE4)
+    std::cout << "[IPC] Ejecutando use_command..." << std::endl;
+    
+    // Validar el payload primero
     if (payload.command_length == 0 || payload.command_length >= ipc::MAX_COMMAND_LENGTH) {
+        std::cout << "[IPC] Error: Command length inválido: " << payload.command_length << std::endl;
         return ipc::ResultCode::ERROR_INVALID_PARAM;
     }
 
+    // Verificar que el buffer del comando sea válido
+    if (IsBadReadPtr(payload.command, payload.command_length * sizeof(wchar_t))) {
+        std::cout << "[IPC] Error: Command buffer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_INVALID_PARAM;
+    }
+
+    // Asegurar que el comando esté null-terminated
+    if (payload.command[payload.command_length] != L'\0') {
+        std::cout << "[IPC] Error: Command no está null-terminated" << std::endl;
+        return ipc::ResultCode::ERROR_INVALID_PARAM;
+    }
+    
+    auto* controller = get_local_player_controller();
+    if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
     // Crear f_string desde el comando recibido
+    std::wcout << L"[IPC] Comando (raw): " << payload.command << std::endl;
     std::wstring cmd_str(payload.command, payload.command_length);
+    std::wcout << L"[IPC] Comando (wstring): " << cmd_str << std::endl;
+    
     ue4::containers::f_string cmd_fstring(cmd_str.c_str());
 
-    controller->use_command(cmd_fstring);
+    call_use_command(controller, cmd_fstring);
+    std::cout << "[IPC] use_command completado" << std::endl;
     return ipc::ResultCode::SUCCESS;
 }
 
 // Ejecutar comando GetPlayerPos
 static ipc::ResultCode execute_get_player_pos(ipc::PlayerPositionPayload& out_payload) {
+    ipc_log("[IPC] Ejecutando get_player_pos...");
+    
     auto* controller = get_local_player_controller();
-    if (!controller || !controller->acknowledged_pawn) {
+    if (!controller) {
+        ipc_log("[IPC] Error: No hay controller");
+        out_payload.valid = false;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+    
+    ipc_log("[IPC] Controller encontrado");
+
+    // Validar controller
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        ipc_log("[IPC] Error: Controller pointer inválido");
         out_payload.valid = false;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
 
+    if (!controller->acknowledged_pawn) {
+        ipc_log("[IPC] Error: No hay acknowledged_pawn");
+        out_payload.valid = false;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+    
+    ipc_log("[IPC] Pawn encontrado");
+
+    // Validar pawn
+    if (IsBadReadPtr(controller->acknowledged_pawn, sizeof(void*))) {
+        ipc_log("[IPC] Error: Pawn pointer inválido");
+        out_payload.valid = false;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    ipc_log("[IPC] Llamando get_location...");
     auto location = controller->acknowledged_pawn->get_location();
+    
+    ipc_log("[IPC] Llamando get_rotation...");
     auto rotation = controller->acknowledged_pawn->get_rotation();
 
     out_payload.position.x = location.x;
@@ -74,6 +185,7 @@ static ipc::ResultCode execute_get_player_pos(ipc::PlayerPositionPayload& out_pa
     out_payload.rotation.z = rotation.z;
     out_payload.valid = true;
 
+    ipc_log("[IPC] get_player_pos completado");
     return ipc::ResultCode::SUCCESS;
 }
 
@@ -81,7 +193,11 @@ void hooks::game_tick::process_ipc_commands() {
     // Obtener todos los comandos pendientes
     auto commands = ipc::CommandQueue::instance().dequeue_all();
 
+    std::cout << "[IPC] Procesando " << commands.size() << " comandos" << std::endl;
+
     for (const auto& cmd : commands) {
+        std::cout << "[IPC] Procesando comando tipo: " << static_cast<int>(cmd.message.header.type) << std::endl;
+        
         ipc::Message response;
         response.header.magic = ipc::MessageHeader::MAGIC;
         response.header.version = ipc::PROTOCOL_VERSION;
@@ -113,10 +229,8 @@ void hooks::game_tick::process_ipc_commands() {
             break;
         }
 
-        // Enviar respuesta a través del callback
-        if (cmd.response_callback) {
-            cmd.response_callback(response);
-        }
+        // Encolar respuesta para que el hilo del servidor la envíe
+        ipc::CommandQueue::instance().enqueue_response(response, cmd.response_pipe);
     }
 }
 

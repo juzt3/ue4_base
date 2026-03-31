@@ -102,43 +102,118 @@ void PipeServer::server_loop() {
 
 void PipeServer::handle_client(HANDLE pipe) {
     while (running_) {
-        Message request;
-        Message response;
-        DWORD bytes_read = 0;
-        DWORD bytes_written = 0;
-
-        // Leer el header primero
-        BOOL success = ReadFile(pipe, &request.header, sizeof(MessageHeader), &bytes_read, nullptr);
-        if (!success || bytes_read != sizeof(MessageHeader)) {
-            if (GetLastError() == ERROR_BROKEN_PIPE) {
-                std::cout << "[IPC] Cliente desconectado." << std::endl;
-            } else {
-                std::cerr << "[IPC] Error leyendo header: " << GetLastError() << std::endl;
+        // Primero enviar cualquier respuesta pendiente
+        if (CommandQueue::instance().has_responses()) {
+            auto responses = CommandQueue::instance().dequeue_responses();
+            for (const auto& resp : responses) {
+                if (resp.pipe == pipe) {
+                    send_response(pipe, resp.message);
+                }
             }
-            break;
+        }
+
+        // Intentar leer con timeout corto para poder enviar respuestas pendientes
+        DWORD bytes_available = 0;
+        BOOL peek_result = PeekNamedPipe(pipe, nullptr, 0, nullptr, &bytes_available, nullptr);
+        
+        if (!peek_result || bytes_available == 0) {
+            // No hay datos, esperar un poco y continuar
+            if (CommandQueue::instance().has_responses()) {
+                continue; // Hay respuestas pendientes, procesarlas
+            }
+            Sleep(10);
+            continue;
+        }
+
+        // Inicializar mensaje completo
+        Message request{};  // Zero-initialize
+        Message response{}; // Zero-initialize
+        DWORD bytes_read = 0;
+        DWORD total_bytes_read = 0;
+
+        // Leer el header primero (manejar ERROR_MORE_DATA)
+        BOOL success = FALSE;
+        bytes_read = 0;
+        
+        while (total_bytes_read < sizeof(MessageHeader)) {
+            success = ReadFile(pipe, 
+                reinterpret_cast<char*>(&request.header) + total_bytes_read,
+                sizeof(MessageHeader) - total_bytes_read,
+                &bytes_read, nullptr);
+            
+            if (!success) {
+                DWORD err = GetLastError();
+                if (err == ERROR_MORE_DATA) {
+                    total_bytes_read += bytes_read;
+                    continue; // Seguir leyendo
+                }
+                if (err == ERROR_BROKEN_PIPE) {
+                    std::cout << "[IPC] Cliente desconectado." << std::endl;
+                } else {
+                    std::cerr << "[IPC] Error leyendo header: " << err << std::endl;
+                }
+                goto disconnect_client;
+            }
+            total_bytes_read += bytes_read;
         }
 
         // Validar el mensaje
         if (!request.header.is_valid()) {
-            std::cerr << "[IPC] Mensaje inválido recibido" << std::endl;
+            std::cerr << "[IPC] Mensaje inválido recibido (magic/version incorrecto)" << std::endl;
+            response.header.magic = MessageHeader::MAGIC;
+            response.header.version = PROTOCOL_VERSION;
+            response.header.request_id = request.header.request_id;
             response.header.type = CommandType::RESPONSE;
             response.payload.response.result = ResultCode::ERROR_INVALID_PARAM;
+            response.header.payload_size = sizeof(ResponsePayload);
+            send_response(pipe, response);
+            continue;
+        }
+
+        // Validar payload_size
+        if (request.header.payload_size > sizeof(request.payload)) {
+            std::cerr << "[IPC] Payload size inválido: " << request.header.payload_size << std::endl;
+            response.header.magic = MessageHeader::MAGIC;
+            response.header.version = PROTOCOL_VERSION;
+            response.header.request_id = request.header.request_id;
+            response.header.type = CommandType::RESPONSE;
+            response.payload.response.result = ResultCode::ERROR_INVALID_PARAM;
+            response.header.payload_size = sizeof(ResponsePayload);
             send_response(pipe, response);
             continue;
         }
 
         // Leer el payload si existe
-        if (request.header.payload_size > 0 && request.header.payload_size <= sizeof(request.payload)) {
+        if (request.header.payload_size > 0) {
+            // Limpiar payload antes de leer
+            memset(&request.payload, 0, sizeof(request.payload));
+            
             success = ReadFile(pipe, &request.payload, request.header.payload_size, &bytes_read, nullptr);
             if (!success || bytes_read != request.header.payload_size) {
                 std::cerr << "[IPC] Error leyendo payload: " << GetLastError() << std::endl;
                 break;
             }
+            
+            std::cout << "[IPC] Payload leído: " << bytes_read << " bytes, tipo: " 
+                      << static_cast<int>(request.header.type) << std::endl;
         }
 
         // Procesar el mensaje
         process_message(request, response, pipe);
     }
+
+    // Enviar respuestas pendientes antes de cerrar
+    {
+        auto responses = CommandQueue::instance().dequeue_responses();
+        for (const auto& resp : responses) {
+            if (resp.pipe == pipe) {
+                send_response(pipe, resp.message);
+            }
+        }
+    }
+
+disconnect_client:
+    return;
 }
 
 void PipeServer::process_message(const Message& request, Message& response, HANDLE pipe) {
@@ -159,9 +234,8 @@ void PipeServer::process_message(const Message& request, Message& response, HAND
     case CommandType::USE_COMMAND:
     case CommandType::GET_PLAYER_POS:
         // Encolar para ejecución en el hilo del juego
-        CommandQueue::instance().enqueue(request, [pipe, this](const Message& result) {
-            send_response(pipe, result);
-            });
+        // El pipe se guarda y se usará cuando el game thread procese el comando
+        CommandQueue::instance().enqueue(request, pipe);
         break;
 
     default:

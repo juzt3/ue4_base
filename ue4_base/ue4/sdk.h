@@ -15,6 +15,13 @@ namespace ue4::sdk {
 
 	// a_player_controller
 	inline ue4::core_object::u_object* world_to_screen;
+	inline ue4::core_object::u_object* move_to_location_order;
+	inline ue4::core_object::u_object* set_pointer;
+	inline ue4::core_object::u_object* use_command;
+
+	// alu4_client_controller
+	inline ue4::core_object::u_object* move_to_location;
+	inline ue4::core_object::u_object* teleport_to_location;
 
 	// a_actor
 	inline ue4::core_object::u_object* get_actor_location;

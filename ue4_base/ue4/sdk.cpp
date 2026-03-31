@@ -26,6 +26,13 @@ bool ue4::sdk::initialize() {
 
 	// a_player_controller
 	ue4::sdk::world_to_screen = ue4::core_object::objects->find("Function Engine.PlayerController.ProjectWorldLocationToScreen");
+	ue4::sdk::move_to_location_order = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.MoveToLocation_Order");
+	ue4::sdk::set_pointer = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.SetPointer");
+	ue4::sdk::use_command = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.UseCommand");
+
+	// alu4_client_controller
+	ue4::sdk::move_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.MoveToLocation");
+	ue4::sdk::teleport_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.TeleportToLocation");
 
 	// a_actor
 	ue4::sdk::get_actor_location = ue4::core_object::objects->find("Function Engine.Actor.K2_GetActorLocation");

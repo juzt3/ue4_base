@@ -3,7 +3,7 @@
 
 void initialize(const HMODULE module) {
 	try {
-		// utils::console::initialize("ue4_base");
+		utils::console::initialize("ue4_base");
 		ue4::sdk::initialize();
 		hooks::initialize();
 	}

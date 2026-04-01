@@ -29,10 +29,14 @@ bool ue4::sdk::initialize() {
 	ue4::sdk::move_to_location_order = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.MoveToLocation_Order");
 	ue4::sdk::set_pointer = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.SetPointer");
 	ue4::sdk::use_command = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.UseCommand");
+	ue4::sdk::use_skill = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.UseSkill");
+	ue4::sdk::attack = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.Attack");
+	ue4::sdk::select_target = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.SelectTarget");
 
 	// alu4_client_controller
 	ue4::sdk::move_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.MoveToLocation");
 	ue4::sdk::teleport_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.TeleportToLocation");
+	ue4::sdk::use_command_by_name = ue4::core_object::objects->find("Function LU4_Core.LU4ScriptCommands.UseCommandByName");
 
 	// a_actor
 	ue4::sdk::get_actor_location = ue4::core_object::objects->find("Function Engine.Actor.K2_GetActorLocation");

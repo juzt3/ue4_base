@@ -53,19 +53,57 @@ bool PipeServer::is_running() const {
 }
 
 HANDLE PipeServer::create_pipe() {
+    // SECURITY_ATTRIBUTES para permitir que el handle sea heredado
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = nullptr;
+    sa.bInheritHandle = FALSE;
+
+    // Primero intentar crear el pipe sin FILE_FLAG_FIRST_PIPE_INSTANCE
     HANDLE pipe = CreateNamedPipeW(
         PIPE_NAME,
         PIPE_ACCESS_DUPLEX,
         PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
+        1,  // Solo 1 instancia para forzar reciclaje
         static_cast<DWORD>(MAX_MESSAGE_SIZE),
         static_cast<DWORD>(MAX_MESSAGE_SIZE),
-        5000, // Timeout de 5 segundos
-        nullptr // Seguridad por defecto
+        5000,
+        &sa
     );
 
+    // Si falla porque ya existe, intentar conectar al existente y cerrarlo
     if (pipe == INVALID_HANDLE_VALUE) {
-        std::cerr << "[IPC] Error al crear pipe: " << GetLastError() << std::endl;
+        DWORD err = GetLastError();
+        std::cerr << "[IPC] Error al crear pipe: " << err << std::endl;
+
+        if (err == ERROR_ACCESS_DENIED || err == ERROR_PIPE_BUSY) {
+            std::cerr << "[IPC] Pipe existe o está ocupado, intentando limpiar..." << std::endl;
+
+            // Intentar abrir el pipe existente para cerrarlo
+            HANDLE existingPipe = CreateFileW(
+                PIPE_NAME,
+                GENERIC_READ | GENERIC_WRITE,
+                0, nullptr, OPEN_EXISTING, 0, nullptr
+            );
+
+            if (existingPipe != INVALID_HANDLE_VALUE) {
+                std::cerr << "[IPC] Pipe existente abierto, cerrando..." << std::endl;
+                CloseHandle(existingPipe);
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+
+            // Reintentar crear el pipe
+            pipe = CreateNamedPipeW(
+                PIPE_NAME,
+                PIPE_ACCESS_DUPLEX,
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                1,
+                static_cast<DWORD>(MAX_MESSAGE_SIZE),
+                static_cast<DWORD>(MAX_MESSAGE_SIZE),
+                5000,
+                &sa
+            );
+        }
     }
 
     return pipe;
@@ -75,39 +113,71 @@ void PipeServer::server_loop() {
     std::wcout << L"[IPC] Servidor iniciado en " << PIPE_NAME << std::endl;
 
     while (running_) {
-        pipe_handle_ = create_pipe();
-        if (pipe_handle_ == INVALID_HANDLE_VALUE) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        // Crear un pipe nuevo para cada iteración - NO reusar handles
+        HANDLE pipe = create_pipe();
+        if (pipe == INVALID_HANDLE_VALUE) {
+            std::cerr << "[IPC] Error creando pipe, reintentando..." << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
         std::cout << "[IPC] Esperando conexión de cliente..." << std::endl;
 
-        BOOL connected = ConnectNamedPipe(pipe_handle_, nullptr);
-        if (!connected && GetLastError() != ERROR_PIPE_CONNECTED) {
-            std::cerr << "[IPC] Error en ConnectNamedPipe: " << GetLastError() << std::endl;
-            CloseHandle(pipe_handle_);
-            pipe_handle_ = INVALID_HANDLE_VALUE;
+        // Esperar conexión del cliente
+        BOOL connected = ConnectNamedPipe(pipe, nullptr);
+        DWORD connectError = GetLastError();
+
+        if (!connected && connectError != ERROR_PIPE_CONNECTED) {
+            std::cerr << "[IPC] Error en ConnectNamedPipe: " << connectError << std::endl;
+            CloseHandle(pipe);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
-        std::cout << "[IPC] Cliente conectado!" << std::endl;
-        handle_client(pipe_handle_);
+        // ERROR_PIPE_CONNECTED significa que el cliente ya se conectó antes de ConnectNamedPipe
+        std::cout << "[IPC] Cliente conectado! (error code: " << connectError << ")" << std::endl;
 
-        DisconnectNamedPipe(pipe_handle_);
-        CloseHandle(pipe_handle_);
+        // Guardar handle global solo para poder cancelarlo en stop()
+        pipe_handle_ = pipe;
+
+        // Manejar al cliente
+        handle_client(pipe);
+
+        // Limpiar después de que el cliente se desconecte
+        std::cout << "[IPC] Limpiando conexión..." << std::endl;
+
+        // Resetear el handle global primero
         pipe_handle_ = INVALID_HANDLE_VALUE;
+
+        // Cerrar el pipe completamente - ESTO ES CRÍTICO
+        // El orden correcto es: Flush -> Disconnect -> Close
+        FlushFileBuffers(pipe);  // Ignorar errores aquí
+        DisconnectNamedPipe(pipe);  // Marca el pipe como disponible para reuso
+        CloseHandle(pipe);  // Libera el handle del sistema
+
+        std::cout << "[IPC] Pipe cerrado correctamente" << std::endl;
+
+        // Pequeña pausa para asegurar que el OS libere el nombre del pipe
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    std::cout << "[IPC] Loop del servidor terminado" << std::endl;
 }
 
 void PipeServer::handle_client(HANDLE pipe) {
+    int consecutive_errors = 0;
+    const int MAX_CONSECUTIVE_ERRORS = 5;
+
     while (running_) {
         // Primero enviar cualquier respuesta pendiente
         if (CommandQueue::instance().has_responses()) {
             auto responses = CommandQueue::instance().dequeue_responses();
             for (const auto& resp : responses) {
                 if (resp.pipe == pipe) {
-                    send_response(pipe, resp.message);
+                    if (!send_response(pipe, resp.message)) {
+                        std::cerr << "[IPC] Error enviando respuesta, cliente probablemente desconectado" << std::endl;
+                        goto disconnect_client;
+                    }
                 }
             }
         }
@@ -115,8 +185,27 @@ void PipeServer::handle_client(HANDLE pipe) {
         // Intentar leer con timeout corto para poder enviar respuestas pendientes
         DWORD bytes_available = 0;
         BOOL peek_result = PeekNamedPipe(pipe, nullptr, 0, nullptr, &bytes_available, nullptr);
-        
-        if (!peek_result || bytes_available == 0) {
+
+        if (!peek_result) {
+            DWORD err = GetLastError();
+            if (err == ERROR_BROKEN_PIPE || err == ERROR_PIPE_NOT_CONNECTED) {
+                std::cout << "[IPC] Pipe roto o desconectado (PeekNamedPipe)" << std::endl;
+                goto disconnect_client;
+            }
+            // Otro error, incrementar contador
+            consecutive_errors++;
+            if (consecutive_errors >= MAX_CONSECUTIVE_ERRORS) {
+                std::cerr << "[IPC] Demasiados errores consecutivos, desconectando" << std::endl;
+                goto disconnect_client;
+            }
+            Sleep(10);
+            continue;
+        }
+
+        // Resetear contador de errores si peek tuvo éxito
+        consecutive_errors = 0;
+
+        if (bytes_available == 0) {
             // No hay datos, esperar un poco y continuar
             if (CommandQueue::instance().has_responses()) {
                 continue; // Hay respuestas pendientes, procesarlas

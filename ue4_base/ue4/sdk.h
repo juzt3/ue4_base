@@ -18,10 +18,14 @@ namespace ue4::sdk {
 	inline ue4::core_object::u_object* move_to_location_order;
 	inline ue4::core_object::u_object* set_pointer;
 	inline ue4::core_object::u_object* use_command;
+	inline ue4::core_object::u_object* use_skill;
+	inline ue4::core_object::u_object* attack;
+	inline ue4::core_object::u_object* select_target;
 
 	// alu4_client_controller
 	inline ue4::core_object::u_object* move_to_location;
 	inline ue4::core_object::u_object* teleport_to_location;
+	inline ue4::core_object::u_object* use_command_by_name;
 
 	// a_actor
 	inline ue4::core_object::u_object* get_actor_location;

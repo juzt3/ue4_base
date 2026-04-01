@@ -13,5 +13,8 @@ namespace ue4::game_framework {
 		void move_to_location(const ue4::math::vector& from, const ue4::math::vector& to, bool is_by_mouse);
 		void teleport_to_location(const ue4::math::vector& location);
 		void use_command(const ue4::containers::f_string& cmd);
+		void use_skill(const int32_t Skill_ID);
+		void attack(bool Force_0, bool bLockMovement_0);
+		void select_target(class AActor* Actor, bool ForceAttack, bool* Selection);
 	};
 }

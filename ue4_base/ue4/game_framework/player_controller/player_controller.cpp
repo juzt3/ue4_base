@@ -74,3 +74,42 @@ void ue4::game_framework::a_player_controller::use_command(const ue4::containers
 
 	ue4::sdk::process_event(this, ue4::sdk::use_command, &params);
 }
+
+void ue4::game_framework::a_player_controller::use_skill(const int32_t Skill_ID) {
+	struct {
+		int32_t Skill_ID;
+	} params{};
+
+	params.Skill_ID = Skill_ID;
+
+	ue4::sdk::process_event(this, ue4::sdk::use_skill, &params);
+}
+
+void ue4::game_framework::a_player_controller::attack(bool Force_0, bool bLockMovement_0){
+	struct {
+		bool Force_0;
+		bool bLockMovement_0:
+	} params{};
+
+	params.Force_0 = Force_0;
+	params.bLockMovement_0 = bLockMovement_0;
+
+	ue4::sdk::process_event(this, ue4::sdk::attack, &params);
+}
+
+void ue4::game_framework::a_player_controller::select_target(class AActor* Actor, bool ForceAttack, bool* Selection)
+{
+	struct {
+		class AActor* Actor;
+		bool ForceAttack;
+		bool Selection;
+	} params{};
+
+	params.Actor = Actor;
+	params.ForceAttack = ForceAttack;
+
+	ue4::sdk::process_event(this, ue4::sdk::select_target, &params);
+
+	if (Selection != nullptr)
+		*Selection = params.Selection;
+}

@@ -22,8 +22,6 @@ static void ipc_log(const std::string& msg) {
 
 // Función para obtener el PlayerController actual
 static ue4::game_framework::a_player_controller* get_local_player_controller() {
-    ipc_log("[IPC] get_local_player_controller: Iniciando...");
-
     const auto world = *reinterpret_cast<decltype(ue4::engine::world)*>(ue4::engine::world);
 	if (!world) nullptr;
 
@@ -73,15 +71,9 @@ static ipc::ResultCode execute_move_to_location(const ipc::MoveToLocationPayload
     std::cout << "[IPC] Moviendo desde (" << from.x << ", " << from.y << ", " << from.z << ") ";
     std::cout << "hacia (" << to.x << ", " << to.y << ", " << to.z << ")" << std::endl;
 
-    try {
-        call_move_to_location(controller, from, to, is_by_mouse);
-        std::cout << "[IPC] move_to_location completado" << std::endl;
-        return ipc::ResultCode::SUCCESS;
-    }
-    catch (...) {
-        std::cout << "[IPC] Excepción en move_to_location" << std::endl;
-        return ipc::ResultCode::ERROR_EXECUTION_FAILED;
-    }
+    call_move_to_location(controller, from, to, is_by_mouse);
+    return ipc::ResultCode::SUCCESS;
+    
 }
 
 // Función interna sin objetos C++ para usar con SEH
@@ -138,43 +130,31 @@ static ipc::ResultCode execute_use_command(const ipc::UseCommandPayload& payload
 
 // Ejecutar comando GetPlayerPos
 static ipc::ResultCode execute_get_player_pos(ipc::PlayerPositionPayload& out_payload) {
-    ipc_log("[IPC] Ejecutando get_player_pos...");
-    
     auto* controller = get_local_player_controller();
     if (!controller) {
-        ipc_log("[IPC] Error: No hay controller");
         out_payload.valid = false;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
-    
-    ipc_log("[IPC] Controller encontrado");
 
     // Validar controller
     if (IsBadReadPtr(controller, sizeof(void*))) {
-        ipc_log("[IPC] Error: Controller pointer inválido");
         out_payload.valid = false;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
 
     if (!controller->acknowledged_pawn) {
-        ipc_log("[IPC] Error: No hay acknowledged_pawn");
         out_payload.valid = false;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
-    
-    ipc_log("[IPC] Pawn encontrado");
 
     // Validar pawn
     if (IsBadReadPtr(controller->acknowledged_pawn, sizeof(void*))) {
-        ipc_log("[IPC] Error: Pawn pointer inválido");
         out_payload.valid = false;
         return ipc::ResultCode::ERROR_NOT_IN_GAME;
     }
 
-    ipc_log("[IPC] Llamando get_location...");
     auto location = controller->acknowledged_pawn->get_location();
     
-    ipc_log("[IPC] Llamando get_rotation...");
     auto rotation = controller->acknowledged_pawn->get_rotation();
 
     out_payload.position.x = location.x;
@@ -185,7 +165,6 @@ static ipc::ResultCode execute_get_player_pos(ipc::PlayerPositionPayload& out_pa
     out_payload.rotation.z = rotation.z;
     out_payload.valid = true;
 
-    ipc_log("[IPC] get_player_pos completado");
     return ipc::ResultCode::SUCCESS;
 }
 
@@ -193,7 +172,8 @@ void hooks::game_tick::process_ipc_commands() {
     // Obtener todos los comandos pendientes
     auto commands = ipc::CommandQueue::instance().dequeue_all();
 
-    std::cout << "[IPC] Procesando " << commands.size() << " comandos" << std::endl;
+    if (commands.size() > 0)
+        std::cout << "[IPC] Prcesando " << commands.size() << " comandos" << std::endl;
 
     for (const auto& cmd : commands) {
         std::cout << "[IPC] Procesando comando tipo: " << static_cast<int>(cmd.message.header.type) << std::endl;

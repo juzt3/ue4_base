@@ -20,34 +20,6 @@ void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_cli
 	// Obtener posición actual del jugador
 	ue4::math::vector inicio = my_player->get_location();
 	
-	// Crear destino CERCANO al jugador (100 unidades adelante en X)
-	ue4::math::vector destino;
-	destino.x = inicio.x + 300.0f;  // 100 unidades adelante
-	destino.y = inicio.y;           // Misma posición Y
-	destino.z = inicio.z;           // Misma altura Z
-	
-	// Solo mover cuando se presiona la tecla T (evita llamadas constantes)
-	if (GetAsyncKeyState('T') & 1) {
-		render::text({ 100.f, 100.f }, L"Moviendo personaje...", { 0.f, 1.f, 0.f, 1.f });
-		player_controller->move_to_location(inicio, destino, true);
-		player_controller->set_pointer(destino);
-	}
-
-	if (GetAsyncKeyState('C') & 1) {
-		render::text({ 100.f, 100.f }, L"Enviando comando...", { 0.f, 1.f, 0.f, 1.f });
-
-		const wchar_t* cmd = L"/useskill Spoil";
-		player_controller->use_command(cmd);
-	}
-
-	// Activar dump de skills - presionar D
-	if (GetAsyncKeyState('D') & 1) {
-		std::cout << "[post_render] Tecla D presionada! Activando flag should_dump_skills..." << std::endl;
-		render::text({ 100.f, 100.f }, L"Iniciando dump de skills...", { 0.f, 1.f, 0.f, 1.f });
-		hooks::game_tick::should_dump_skills = true;
-		std::cout << "[post_render] Flag activada! Valor: " << hooks::game_tick::should_dump_skills << std::endl;
-	}
-	
 	// Mostrar posición actual en pantalla
 	wchar_t pos_text[256];
 	swprintf(pos_text, 256, L"Pos: X=%.1f Y=%.1f Z=%.1f", inicio.x, inicio.y, inicio.z);

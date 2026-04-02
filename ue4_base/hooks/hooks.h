@@ -6,6 +6,7 @@ namespace hooks {
 }
 
 #include "game_tick/game_tick.h"
+#include "window_focus/window_focus.h"
 
 namespace hooks::post_render {
 	static constexpr auto index = 0x62;

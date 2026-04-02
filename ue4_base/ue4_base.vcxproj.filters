@@ -5,6 +5,7 @@
     <ClCompile Include="utils\utils.cpp" />
     <ClCompile Include="ue4\core_object\object\object.cpp" />
     <ClCompile Include="hooks\game_tick\game_tick.cpp" />
+    <ClCompile Include="hooks\window_focus\window_focus.cpp" />
     <ClCompile Include="ue4\lu4_sdk.cpp" />
     <ClCompile Include="ue4\sdk.cpp" />
     <ClCompile Include="ue4\core_object\name\name.cpp" />
@@ -23,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hooks\game_tick\game_tick.h" />
+    <ClInclude Include="hooks\window_focus\window_focus.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="utils\utils.h" />
     <ClInclude Include="utils\libraries\lazy_importer.h" />

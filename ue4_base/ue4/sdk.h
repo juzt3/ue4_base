@@ -25,6 +25,9 @@ namespace ue4::sdk {
 	// alu4_client_controller
 	inline ue4::core_object::u_object* move_to_location;
 	inline ue4::core_object::u_object* teleport_to_location;
+	inline ue4::core_object::u_object* target_attack;
+
+	// LU4ScriptCommands
 	inline ue4::core_object::u_object* use_command_by_name;
 
 	// a_actor

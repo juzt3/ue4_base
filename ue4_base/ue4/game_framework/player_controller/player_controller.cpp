@@ -88,7 +88,7 @@ void ue4::game_framework::a_player_controller::use_skill(const int32_t Skill_ID)
 void ue4::game_framework::a_player_controller::attack(bool Force_0, bool bLockMovement_0){
 	struct {
 		bool Force_0;
-		bool bLockMovement_0:
+		bool bLockMovement_0;
 	} params{};
 
 	params.Force_0 = Force_0;
@@ -97,10 +97,10 @@ void ue4::game_framework::a_player_controller::attack(bool Force_0, bool bLockMo
 	ue4::sdk::process_event(this, ue4::sdk::attack, &params);
 }
 
-void ue4::game_framework::a_player_controller::select_target(class AActor* Actor, bool ForceAttack, bool* Selection)
+void ue4::game_framework::a_player_controller::select_target(::AActor* Actor, bool ForceAttack, bool* Selection)
 {
 	struct {
-		class AActor* Actor;
+		::AActor* Actor;
 		bool ForceAttack;
 		bool Selection;
 	} params{};
@@ -112,4 +112,19 @@ void ue4::game_framework::a_player_controller::select_target(class AActor* Actor
 
 	if (Selection != nullptr)
 		*Selection = params.Selection;
+}
+
+void ue4::game_framework::a_player_controller::target_attack(class AActor* Target, const ue4::math::vector& Location, bool bLockMovement)
+{
+	struct {
+		::AActor* Target;
+		ue4::math::vector Location;
+		bool bLockMovement;
+	} params{};
+
+	params.Target = Target;
+	params.Location = Location;
+	params.bLockMovement = bLockMovement;
+
+	ue4::sdk::process_event(this, ue4::sdk::target_attack, &params);
 }

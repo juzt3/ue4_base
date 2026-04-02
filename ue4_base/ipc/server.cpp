@@ -322,9 +322,26 @@ void PipeServer::process_message(const Message& request, Message& response, HAND
     case CommandType::MOVE_TO_LOCATION:
     case CommandType::USE_COMMAND:
     case CommandType::GET_PLAYER_POS:
-        // Encolar para ejecución en el hilo del juego
-        // El pipe se guarda y se usará cuando el game thread procese el comando
-        CommandQueue::instance().enqueue(request, pipe);
+    case CommandType::USE_SKILL:
+    case CommandType::ATTACK:
+    case CommandType::SELECT_TARGET:
+    case CommandType::TARGET_ATTACK:
+        // Ejecutar sincrónicamente en el hilo del juego
+        // El servidor esperará a que el comando se complete antes de continuar
+        {
+            Message sync_response;
+            bool success = CommandQueue::instance().execute_sync(request, pipe, sync_response);
+
+            if (success) {
+                // Enviar la respuesta directamente
+                send_response(pipe, sync_response);
+            } else {
+                // Timeout o error
+                response.payload.response.result = ResultCode::ERROR_EXECUTION_FAILED;
+                response.header.payload_size = sizeof(ResponsePayload);
+                send_response(pipe, response);
+            }
+        }
         break;
 
     default:

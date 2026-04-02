@@ -17,6 +17,13 @@ void __stdcall hooks::post_render::hook(ue4::core_object::u_object* viewport_cli
 	const auto my_player = player_controller->acknowledged_pawn;
 	if (!my_player) return;
 
+	// Escucha de teclado - Presionar 'Z' para ejecutar attack
+	if (GetAsyncKeyState('Z') & 0x1)
+	{
+		std::cout << "[post_render] Tecla Z presionada" << std::endl;
+		player_controller->attack(false, false);
+	}
+
 	// Obtener posición actual del jugador
 	ue4::math::vector inicio = my_player->get_location();
 	

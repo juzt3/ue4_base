@@ -5,13 +5,22 @@
 #include <mutex>
 #include <queue>
 #include <functional>
+#include <future>
+#include <atomic>
 
 namespace ipc {
+
+// Respuesta del comando incluyendo el mensaje y el pipe
+struct CommandResult {
+    Message response;
+    bool success = false;
+};
 
 // Comando encolado para ejecución en el hilo del juego
 struct QueuedCommand {
     Message message;
-    HANDLE response_pipe;  // Pipe para enviar la respuesta
+    HANDLE response_pipe;
+    std::promise<CommandResult>* promise;  // Para sincronización síncrona (puede ser nullptr)
 };
 
 // Respuesta pendiente para enviar desde el hilo del servidor
@@ -25,7 +34,11 @@ class CommandQueue {
 public:
     static CommandQueue& instance();
 
-    // Agregar comando a la cola (llamado desde el hilo del servidor)
+    // Agregar comando a la cola y esperar su ejecución (llamado desde el hilo del servidor)
+    // Retorna true si el comando fue ejecutado exitosamente
+    bool execute_sync(const Message& msg, HANDLE response_pipe, Message& out_response);
+
+    // Agregar comando a la cola sin esperar (llamado desde el hilo del servidor) - mantener compatibilidad
     void enqueue(const Message& msg, HANDLE response_pipe);
 
     // Obtener todos los comandos pendientes (llamado desde el hilo del juego)

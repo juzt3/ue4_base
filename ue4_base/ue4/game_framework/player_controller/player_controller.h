@@ -1,5 +1,8 @@
 #pragma once
 
+// Forward declaration de AActor (tipo nativo de UE4)
+class AActor;
+
 namespace ue4::game_framework {
 	class a_player_controller : public ue4::game_framework::a_controller {
 	public:
@@ -15,6 +18,7 @@ namespace ue4::game_framework {
 		void use_command(const ue4::containers::f_string& cmd);
 		void use_skill(const int32_t Skill_ID);
 		void attack(bool Force_0, bool bLockMovement_0);
-		void select_target(class AActor* Actor, bool ForceAttack, bool* Selection);
+		void select_target(::AActor* Actor, bool ForceAttack, bool* Selection);
+		void target_attack(class AActor* Target, const ue4::math::vector& Location, bool bLockMovement);
 	};
 }

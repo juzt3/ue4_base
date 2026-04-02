@@ -32,10 +32,17 @@ bool ue4::sdk::initialize() {
 	ue4::sdk::use_skill = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.UseSkill");
 	ue4::sdk::attack = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.Attack");
 	ue4::sdk::select_target = ue4::core_object::objects->find("Function ControllerPC.ControllerPC_C.SelectTarget");
+	
+	// Debug: Verificar funciones críticas
+	std::cout << "[sdk] attack = " << ue4::sdk::attack << std::endl;
+	utils::print_assembly(ue4::sdk::attack, 128);
 
 	// alu4_client_controller
 	ue4::sdk::move_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.MoveToLocation");
 	ue4::sdk::teleport_to_location = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.TeleportToLocation");
+	ue4::sdk::target_attack = ue4::core_object::objects->find("Function LU4_Core.LU4ClientController.TargetAttack");
+
+	// LU4ScriptCommands
 	ue4::sdk::use_command_by_name = ue4::core_object::objects->find("Function LU4_Core.LU4ScriptCommands.UseCommandByName");
 
 	// a_actor

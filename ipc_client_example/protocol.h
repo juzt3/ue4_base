@@ -25,7 +25,11 @@ enum class CommandType : uint32_t {
     USE_COMMAND = 2,
     GET_PLAYER_POS = 3,  // Para debugging/verificación
     PING = 4,            // Verificar conexión
-    RESPONSE = 5         // Respuesta del servidor
+    RESPONSE = 5,        // Respuesta del servidor
+    USE_SKILL = 6,       // Usar skill por ID
+    ATTACK = 7,          // Atacar target actual
+    SELECT_TARGET = 8,   // Seleccionar target por ID
+    TARGET_ATTACK = 9    // Atacar target específico con ubicación
 };
 
 // Códigos de resultado
@@ -88,6 +92,30 @@ struct PlayerPositionPayload {
     bool valid;
 };
 
+// Payload para USE_SKILL
+struct UseSkillPayload {
+    int32_t skill_id;
+};
+
+// Payload para ATTACK
+struct AttackPayload {
+    uint32_t force;           // 0 = false, 1 = true
+    uint32_t lock_movement;   // 0 = false, 1 = true
+};
+
+// Payload para SELECT_TARGET
+struct SelectTargetPayload {
+    uint64_t actor_address;   // Dirección del actor en memoria (para uso interno)
+    uint32_t force_attack;    // 0 = false, 1 = true
+};
+
+// Payload para TARGET_ATTACK
+struct TargetAttackPayload {
+    uint64_t target_address;  // Dirección del target en memoria
+    Vector3 location;         // Ubicación del ataque
+    uint32_t lock_movement;   // 0 = false, 1 = true
+};
+
 // Estructura completa de mensaje (para alocación)
 struct Message {
     MessageHeader header;
@@ -96,6 +124,10 @@ struct Message {
         UseCommandPayload use_command;
         ResponsePayload response;
         PlayerPositionPayload player_pos;
+        UseSkillPayload use_skill;
+        AttackPayload attack;
+        SelectTargetPayload select_target;
+        TargetAttackPayload target_attack;
         uint8_t raw[1024];
 
         PayloadUnion() {

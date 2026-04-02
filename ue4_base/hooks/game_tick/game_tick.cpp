@@ -6,6 +6,9 @@
 #include <fstream>
 #include <ctime>
 
+// Forward declaration para select_target - AActor es un tipo de UE4
+class AActor;
+
 // Logger simple a archivo
 static void ipc_log(const std::string& msg) {
     std::ofstream log("ipc_debug.log", std::ios::app);
@@ -168,16 +171,151 @@ static ipc::ResultCode execute_get_player_pos(ipc::PlayerPositionPayload& out_pa
     return ipc::ResultCode::SUCCESS;
 }
 
+// Función interna para usar skill
+static void call_use_skill(ue4::game_framework::a_player_controller* controller,
+                            int32_t skill_id) {
+    controller->use_skill(skill_id);
+}
+
+// Ejecutar comando UseSkill
+static ipc::ResultCode execute_use_skill(const ipc::UseSkillPayload& payload) {
+    std::cout << "[IPC] Ejecutando use_skill..." << std::endl;
+    
+    auto* controller = get_local_player_controller();
+    if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    std::cout << "[IPC] Usando skill ID: " << payload.skill_id << std::endl;
+
+    call_use_skill(controller, payload.skill_id);
+    return ipc::ResultCode::SUCCESS;
+}
+
+// Función interna para atacar
+static void call_attack(ue4::game_framework::a_player_controller* controller,
+                         bool force, bool lock_movement) {
+    controller->attack(force, lock_movement);
+}
+
+// Ejecutar comando Attack
+static ipc::ResultCode execute_attack(const ipc::AttackPayload& payload) {
+    std::cout << "[IPC] Ejecutando attack..." << std::endl;
+    
+    auto* controller = get_local_player_controller();
+    if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    bool force = (payload.force != 0);
+    bool lock_movement = (payload.lock_movement != 0);
+
+    std::cout << "[IPC] Attack - Force: " << force << ", LockMovement: " << lock_movement << std::endl;
+
+    call_attack(controller, force, lock_movement);
+    return ipc::ResultCode::SUCCESS;
+}
+
+// Ejecutar comando SelectTarget
+static ipc::ResultCode execute_select_target(const ipc::SelectTargetPayload& payload) {
+    std::cout << "[IPC] Ejecutando select_target..." << std::endl;
+    
+    auto* controller = get_local_player_controller();
+    if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar dirección del actor
+    if (payload.actor_address == 0 || IsBadReadPtr(reinterpret_cast<void*>(payload.actor_address), sizeof(void*))) {
+        std::cout << "[IPC] Error: Actor address inválida" << std::endl;
+        return ipc::ResultCode::ERROR_INVALID_PARAM;
+    }
+
+    bool force_attack = (payload.force_attack != 0);
+    bool selection = false;
+
+    std::cout << "[IPC] SelectTarget - Actor: 0x" << std::hex << payload.actor_address 
+              << std::dec << ", ForceAttack: " << force_attack << std::endl;
+
+    // Llamar directamente - el parámetro AActor* se pasa como void*
+    controller->select_target(reinterpret_cast<class AActor*>(payload.actor_address), force_attack, &selection);
+    return ipc::ResultCode::SUCCESS;
+}
+
+// Función interna para target_attack
+static void call_target_attack(ue4::game_framework::a_player_controller* controller,
+                                class AActor* target,
+                                const ue4::math::vector& location,
+                                bool lock_movement) {
+    controller->target_attack(target, location, lock_movement);
+}
+
+// Ejecutar comando TargetAttack
+static ipc::ResultCode execute_target_attack(const ipc::TargetAttackPayload& payload) {
+    std::cout << "[IPC] Ejecutando target_attack..." << std::endl;
+    
+    auto* controller = get_local_player_controller();
+    if (!controller) {
+        std::cout << "[IPC] Error: No hay controller" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar puntero
+    if (IsBadReadPtr(controller, sizeof(void*))) {
+        std::cout << "[IPC] Error: Controller pointer inválido" << std::endl;
+        return ipc::ResultCode::ERROR_NOT_IN_GAME;
+    }
+
+    // Validar dirección del target
+    if (payload.target_address == 0 || IsBadReadPtr(reinterpret_cast<void*>(payload.target_address), sizeof(void*))) {
+        std::cout << "[IPC] Error: Target address inválida" << std::endl;
+        return ipc::ResultCode::ERROR_INVALID_PARAM;
+    }
+
+    bool lock_movement = (payload.lock_movement != 0);
+
+    ue4::math::vector location{ payload.location.x, payload.location.y, payload.location.z };
+
+    std::cout << "[IPC] TargetAttack - Target: 0x" << std::hex << payload.target_address 
+              << std::dec << ", Location: (" << location.x << ", " << location.y << ", " << location.z 
+              << "), LockMovement: " << lock_movement << std::endl;
+
+    // Llamar directamente - el parámetro AActor* se pasa como void*
+    call_target_attack(controller, reinterpret_cast<class AActor*>(payload.target_address), location, lock_movement);
+    return ipc::ResultCode::SUCCESS;
+}
+
 void hooks::game_tick::process_ipc_commands() {
     // Obtener todos los comandos pendientes
     auto commands = ipc::CommandQueue::instance().dequeue_all();
 
     if (commands.size() > 0)
-        std::cout << "[IPC] Prcesando " << commands.size() << " comandos" << std::endl;
+        std::cout << "[IPC] Procesando " << commands.size() << " comandos" << std::endl;
 
     for (const auto& cmd : commands) {
         std::cout << "[IPC] Procesando comando tipo: " << static_cast<int>(cmd.message.header.type) << std::endl;
-        
+
         ipc::Message response;
         response.header.magic = ipc::MessageHeader::MAGIC;
         response.header.version = ipc::PROTOCOL_VERSION;
@@ -204,13 +342,41 @@ void hooks::game_tick::process_ipc_commands() {
             }
             break;
 
+        case ipc::CommandType::USE_SKILL:
+            response.payload.response.result = execute_use_skill(
+                cmd.message.payload.use_skill);
+            break;
+
+        case ipc::CommandType::ATTACK:
+            response.payload.response.result = execute_attack(
+                cmd.message.payload.attack);
+            break;
+
+        case ipc::CommandType::SELECT_TARGET:
+            response.payload.response.result = execute_select_target(
+                cmd.message.payload.select_target);
+            break;
+
+        case ipc::CommandType::TARGET_ATTACK:
+            response.payload.response.result = execute_target_attack(
+                cmd.message.payload.target_attack);
+            break;
+
         default:
             response.payload.response.result = ipc::ResultCode::ERROR_UNKNOWN_COMMAND;
             break;
         }
 
-        // Encolar respuesta para que el hilo del servidor la envíe
-        ipc::CommandQueue::instance().enqueue_response(response, cmd.response_pipe);
+        // Si es un comando síncrono (tiene promesa), completarla
+        if (cmd.promise != nullptr) {
+            ipc::CommandResult result;
+            result.success = (response.payload.response.result == ipc::ResultCode::SUCCESS);
+            result.response = response;
+            cmd.promise->set_value(result);
+        } else {
+            // Comando asíncrono: encolar respuesta para que el hilo del servidor la envíe
+            ipc::CommandQueue::instance().enqueue_response(response, cmd.response_pipe);
+        }
     }
 }
 

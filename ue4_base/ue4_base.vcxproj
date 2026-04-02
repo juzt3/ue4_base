@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hooks\game_tick\game_tick.cpp" />
+    <ClCompile Include="hooks\window_focus\window_focus.cpp" />
     <ClCompile Include="hooks\hooks.cpp" />
     <ClCompile Include="hooks\post_render\post_render.cpp" />
     <ClCompile Include="ipc\command_queue.cpp">
@@ -49,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hooks\game_tick\game_tick.h" />
+    <ClInclude Include="hooks\window_focus\window_focus.h" />
     <ClInclude Include="hooks\hooks.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="render\render.h" />
